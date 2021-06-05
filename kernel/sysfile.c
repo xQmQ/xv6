@@ -25,13 +25,17 @@ argfd(int n, int *pfd, struct file **pf)
   struct file *f;
 
   if(argint(n, &fd) < 0)
+  // fd最终会得到trapframe中a0寄存器的值
+  // 即fd得到用户调用fstat()时传入的文件描述符
     return -1;
   if(fd < 0 || fd >= NOFILE || (f=myproc()->ofile[fd]) == 0)
+  // 利用fd得到的文件描述符，f得到当前进程下开启的文件中对应的文件
     return -1;
   if(pfd)
     *pfd = fd;
   if(pf)
     *pf = f;
+  // 将对应的信息复制到指针中
   return 0;
 }
 
@@ -111,6 +115,8 @@ sys_fstat(void)
   uint64 st; // user pointer to struct stat
 
   if(argfd(0, 0, &f) < 0 || argaddr(1, &st) < 0)
+  // argfd()得到用户系统调用时传入的文件描述符对应的文件
+  // argaddr()得到用户系统调用时传入的保存文件状态的地址
     return -1;
   return filestat(f, st);
 }

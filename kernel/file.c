@@ -88,13 +88,15 @@ int
 filestat(struct file *f, uint64 addr)
 {
   struct proc *p = myproc();
-  struct stat st;
+  struct stat st;// 文件状态
   
   if(f->type == FD_INODE || f->type == FD_DEVICE){
-    ilock(f->ip);
-    stati(f->ip, &st);
-    iunlock(f->ip);
+    // f->ip是inode类型，指向磁盘中的文件
+    ilock(f->ip);// 文件上锁
+    stati(f->ip, &st);// 拷贝文件信息到st中
+    iunlock(f->ip);// 解锁
     if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
+    // 从内核中，将st中的信息拷贝到p的页表中虚拟地址addr
       return -1;
     return 0;
   }
