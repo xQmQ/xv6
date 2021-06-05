@@ -23,7 +23,7 @@ extern char trampoline[]; // trampoline.S
 
 // 收集状态不为UNUSED的进程的数量
 int
-used_proc_count(void){
+nproc(void){
   int count = 0;
   struct proc *p;
 
