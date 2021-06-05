@@ -21,6 +21,22 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
+// 收集状态不为UNUSED的进程的数量
+int
+used_proc_count(void){
+  int count = 0;
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state != UNUSED) 
+      ++count;    
+    release(&p->lock);
+  }
+
+  return count;
+}
+
 // initialize the proc table at boot time.
 void
 procinit(void)
