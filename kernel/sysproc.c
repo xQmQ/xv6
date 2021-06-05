@@ -6,6 +6,28 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
+
+uint64
+sys_sysinfo(void){
+  struct sysinfo info;
+  struct proc *p = myproc();
+  uint64 addr;
+
+  // 获取用户调用sysinfo()时传入的参数地址
+  if(argaddr(0,&addr)<0)
+    return -1;
+
+  // 获得当前system information
+  info.freemem = freemem();
+  info.nproc = nproc();
+
+  // 将信息从内核空间拷贝到用户空间
+  if(copyout(p->pagetable,addr,(char *)&info,sizeof(info))<0)
+    return -1;
+
+  return 0;
+}
 
 uint64
 sys_trace(void)

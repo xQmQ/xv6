@@ -23,6 +23,7 @@ struct {
   struct run *freelist;
 } kmem;
 
+// 收集当前可用内存的大小
 uint64
 freemem(void){
   struct run *r = kmem.freelist;
@@ -35,7 +36,7 @@ freemem(void){
     release(&kmem.lock);
   }
 
-  return count * 4096;
+  return count * PGSIZE;
 }
 
 void
