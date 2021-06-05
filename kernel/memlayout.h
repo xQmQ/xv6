@@ -26,11 +26,13 @@
 #define VIRTIO0_IRQ 1
 
 // local interrupt controller, which contains the timer.
+// 本地中断控制器，包含定时器
 #define CLINT 0x2000000L
 #define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8*(hartid))
 #define CLINT_MTIME (CLINT + 0xBFF8) // cycles since boot.
 
 // qemu puts programmable interrupt controller here.
+// qemu将可编程的中断控制器放在这里
 #define PLIC 0x0c000000L
 #define PLIC_PRIORITY (PLIC + 0x0)
 #define PLIC_PENDING (PLIC + 0x1000)
@@ -44,8 +46,8 @@
 // the kernel expects there to be RAM
 // for use by the kernel and user pages
 // from physical address 0x80000000 to PHYSTOP.
-#define KERNBASE 0x80000000L
-#define PHYSTOP (KERNBASE + 128*1024*1024)
+#define KERNBASE 0x80000000L               // 2G
+#define PHYSTOP (KERNBASE + 128*1024*1024) // 2G+128M
 
 // map the trampoline page to the highest address,
 // in both user and kernel space.
