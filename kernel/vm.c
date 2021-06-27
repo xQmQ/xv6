@@ -9,6 +9,7 @@
 /*
  * the kernel's page table.
  */
+// 无符号型长整数的指针
 pagetable_t kernel_pagetable;
 
 extern char etext[];  // kernel.ld sets this to end of kernel code.
@@ -17,12 +18,17 @@ extern char trampoline[]; // trampoline.S
 
 /*
  * create a direct-map page table for the kernel.
+ * 为内核创建一个直接映射页表
  */
 void
 kvminit()
 {
+  // 获得一块4KB大小的物理内存
   kernel_pagetable = (pagetable_t) kalloc();
+  // 初始化物理内存
   memset(kernel_pagetable, 0, PGSIZE);
+
+  // 以下每个kvmmap函数，将每个I/O设备映射到内核
 
   // uart registers
   kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
@@ -68,8 +74,19 @@ kvminithart()
 //   21..29 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
 //    0..11 -- 12 bits of byte offset within the page.
+// 返回页表中对应于虚拟地址va的页表项地址
+// （注：按照这个意思，返回的应当是对应物理块的起始地址？）
+// 如果alloc!=0，创建任何需要的页表
+// 1个页表包含512个64位长的页表项
+// 1个64位的虚拟地址被分为五个字段
+//   39~63 -- 设置为0，①是因为用不上，②是因为将来发展了可以用来扩展
+//   30~38 -- 顶级页目录记录的，针对二级页表的索引，9位
+//   21~29 -- 二级页目录记录的，针对页表的索引，9位
+//   12~20 -- 页表的记录的，针对物理块的索引，9位
+//    0~11 -- 页内偏移量，12位，同时表示一个页大小为2^12B=4KB
 pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
+// 这里的pagetable应当是进程中记录的顶级页表的地址
 {
   if(va >= MAXVA)
     panic("walk");
@@ -271,14 +288,24 @@ uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 
 // Recursively free page-table pages.
 // All leaf mappings must already have been removed.
+// 递归释放页表页面
+// 所有的叶子映射必须已经被移除
 void
 freewalk(pagetable_t pagetable)
 {
   // there are 2^9 = 512 PTEs in a page table.
+  // 一个页表中有512个页表项
+  // 一个页表项大小为8byte，即64bit
   for(int i = 0; i < 512; i++){
     pte_t pte = pagetable[i];
     if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // PTE_V:表示当前PTE是否有效，根据位数看应当是第一位
+      // PTE_R:是否可读
+      // PTE_W:是否可写
+      // PTE_X:是否可执行
+      // 判断:保证PTE有效且
       // this PTE points to a lower-level page table.
+      // 这个页表项指向一个低等级页表
       uint64 child = PTE2PA(pte);
       freewalk((pagetable_t)child);
       pagetable[i] = 0;

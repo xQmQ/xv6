@@ -1,11 +1,20 @@
 // Physical memory layout
+// 物理内存布局
 
 // qemu -machine virt is set up like this,
 // based on qemu's hw/riscv/virt.c:
 //
+
+// 自0x80000000以下，是I/O设备
+
 // 00001000 -- boot ROM, provided by qemu
+// 0x1000开始，是boot ROM的物理地址
+
 // 02000000 -- CLINT
+// CLINT是中断的一部分（？啥意思）
 // 0C000000 -- PLIC
+// PLIC是中断控制器
+
 // 10000000 -- uart0 
 // 10001000 -- virtio disk 
 // 80000000 -- boot ROM jumps here in machine mode
@@ -44,7 +53,9 @@
 // the kernel expects there to be RAM
 // for use by the kernel and user pages
 // from physical address 0x80000000 to PHYSTOP.
+// 内核地址起始地址是0x80000000，此地址以下是I/O设备
 #define KERNBASE 0x80000000L
+// 设置内存大小是128MB
 #define PHYSTOP (KERNBASE + 128*1024*1024)
 
 // map the trampoline page to the highest address,

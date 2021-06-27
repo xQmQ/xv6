@@ -343,6 +343,15 @@ sfence_vma()
 #define PXMASK          0x1FF // 9 bits
 #define PXSHIFT(level)  (PGSHIFT+(9*(level)))
 #define PX(level, va) ((((uint64) (va)) >> PXSHIFT(level)) & PXMASK)
+/*
+ * PX(level,va)，用来获得虚拟地址va的第level级索引的九位二进制数
+ * 1. 假设level为0，即想要获得页表内记录的对应物理块的索引
+ * 2. 假设level为1，即想要获得二级页表记录的，针对页表的索引
+ * 3. 假设level为2，即想要获得顶级页表记录的，针对二级页表的索引
+ * 
+ * 通过level的值确定PXSHIFT的值，将va相应的右移PXSHIFT位
+ * 通过右移后与PXMASK想与，获得最后九位的二进制值
+*/
 
 // one beyond the highest possible virtual address.
 // MAXVA is actually one bit less than the max allowed by
