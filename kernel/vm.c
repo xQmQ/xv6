@@ -303,7 +303,6 @@ freewalk(pagetable_t pagetable)
       // PTE_R:是否可读
       // PTE_W:是否可写
       // PTE_X:是否可执行
-      // 判断:保证PTE有效且
       // this PTE points to a lower-level page table.
       // 这个页表项指向一个低等级页表
       uint64 child = PTE2PA(pte);
@@ -314,6 +313,38 @@ freewalk(pagetable_t pagetable)
     }
   }
   kfree((void*)pagetable);
+}
+
+void
+vmprint(pagetable_t pagetable)
+{
+  printf("page table %p\n", pagetable);
+  vmprintp(pagetable, 0);
+}
+
+void
+vmprintp(pagetable_t pagetable, int num)
+{
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      printf(" ");
+      for (int i = 0; i < num; ++i)
+        printf(".. ");
+
+      uint64 child = PTE2PA(pte);
+      printf("..%d: pte %p pa %p\n", i, pte, child);
+
+      vmprintp((pagetable_t)child,num+1);
+    }else if(pte & PTE_V){
+      printf(" ");
+      for (int i = 0; i < num; ++i)
+        printf(".. ");
+
+      uint64 child = PTE2PA(pte);
+      printf("..%d: pte %p pa %p\n", i, pte, child);
+    }
+  }
 }
 
 // Free user memory pages,
