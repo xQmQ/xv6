@@ -327,22 +327,16 @@ vmprintp(pagetable_t pagetable, int num)
 {
   for(int i = 0; i < 512; i++){
     pte_t pte = pagetable[i];
+    uint64 child = PTE2PA(pte);
+    if(pte & PTE_V){
+      printf(" ");
+      for (int i = 0; i < num; ++i)
+        printf(".. ");
+
+      printf("..%d: pte %p pa %p\n", i, pte, child);
+    }
     if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
-      printf(" ");
-      for (int i = 0; i < num; ++i)
-        printf(".. ");
-
-      uint64 child = PTE2PA(pte);
-      printf("..%d: pte %p pa %p\n", i, pte, child);
-
       vmprintp((pagetable_t)child,num+1);
-    }else if(pte & PTE_V){
-      printf(" ");
-      for (int i = 0; i < num; ++i)
-        printf(".. ");
-
-      uint64 child = PTE2PA(pte);
-      printf("..%d: pte %p pa %p\n", i, pte, child);
     }
   }
 }
