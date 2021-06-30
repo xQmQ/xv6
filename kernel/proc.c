@@ -8,7 +8,7 @@
 
 struct cpu cpus[NCPU];
 
-struct proc proc[NPROC];
+struct proc proc[NPROC]; // 进程表
 
 struct proc *initproc;
 
@@ -22,6 +22,7 @@ static void freeproc(struct proc *p);
 extern char trampoline[]; // trampoline.S
 
 // initialize the proc table at boot time.
+// 在启动时初始化进程表
 void
 procinit(void)
 {
@@ -34,9 +35,13 @@ procinit(void)
       // Allocate a page for the process's kernel stack.
       // Map it high in memory, followed by an invalid
       // guard page.
+      // 为进程的内核堆栈分配一个页面。
+      // 将其映射到内存的高位，然后是一个无效的守护页
       char *pa = kalloc();
       if(pa == 0)
         panic("kalloc");
+      // 为进程计算一个虚拟地址
+      // 将虚拟地址和申请的物理地址绑定到kernel_pagetable
       uint64 va = KSTACK((int) (p - proc));
       kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
       p->kstack = va;
@@ -89,6 +94,9 @@ allocpid() {
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
+// 在进程表中寻找一个未使用的进程
+// 如果找到，初始化在内核中运行所需的状态，并在p->lock保持的情况下返回
+// 如果没有空闲的proc，或者内存分配失败，返回0
 static struct proc*
 allocproc(void)
 {
@@ -114,6 +122,7 @@ found:
   }
 
   // An empty user page table.
+  // 为进程分配一个空的用户页表
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
     freeproc(p);
@@ -123,6 +132,7 @@ found:
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
+  // 设置新的CPU上下文，从forkret开始执行
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
@@ -453,6 +463,12 @@ wait(uint64 addr)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
+// 每一个CPU的进程调度器
+// 每个CPU在设置好自己后调用scheduler()
+// 调度器从不返回，它循环运行：
+// - 选择一个要运行的进程
+// - 启动运行该进程的swtch
+// - 最终该进程将控制权通过swtch回到调度器
 void
 scheduler(void)
 {
@@ -462,6 +478,7 @@ scheduler(void)
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
+    // 通过确保设备可以中断来避免死锁
     intr_on();
     
     int found = 0;
@@ -471,16 +488,21 @@ scheduler(void)
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
+        // 将一个就绪态进程转换到运行态
         p->state = RUNNING;
         c->proc = p;
+        // 切换CPU上下文，来运行进程
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
+        // 进程运行结束后会自动调整p->state
+        // 设置此时CPU运行的进程号为0（应当代表无进程)
         c->proc = 0;
 
         found = 1;
       }
+      // 释放锁，准备下一次调度
       release(&p->lock);
     }
 #if !defined (LAB_FS)

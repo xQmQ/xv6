@@ -131,6 +131,8 @@ walkaddr(pagetable_t pagetable, uint64 va)
 // add a mapping to the kernel page table.
 // only used when booting.
 // does not flush TLB or enable paging.
+// 在初始化时为内核页表添加一个映射
+// 不会刷新TLB或启用分页
 void
 kvmmap(uint64 va, uint64 pa, uint64 sz, int perm)
 {
@@ -162,6 +164,9 @@ kvmpa(uint64 va)
 // physical addresses starting at pa. va and size might not
 // be page-aligned. Returns 0 on success, -1 if walk() couldn't
 // allocate a needed page-table page.
+// 在页表pagetable中为虚拟地址va创建一个PTE，PTE指向的物理地址是pa
+// 页表项权限由prem指定，并附带PTE_V
+// 成功时返回0，如果walk()不能分配到所需的页表页，则返回1
 int
 mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 {

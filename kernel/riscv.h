@@ -258,6 +258,7 @@ r_time()
 }
 
 // enable device interrupts
+// 启用设备中断
 static inline void
 intr_on()
 {
@@ -350,7 +351,7 @@ sfence_vma()
  * 3. 假设level为2，即想要获得顶级页表记录的，针对二级页表的索引
  * 
  * 通过level的值确定PXSHIFT的值，将va相应的右移PXSHIFT位
- * 通过右移后与PXMASK想与，获得最后九位的二进制值
+ * 通过右移后与PXMASK相与，获得最后九位的二进制值
 */
 
 // one beyond the highest possible virtual address.

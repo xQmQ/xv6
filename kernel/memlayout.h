@@ -60,6 +60,7 @@
 
 // map the trampoline page to the highest address,
 // in both user and kernel space.
+// 将用户和内核空间的trampoline页映射到最高地址
 #define TRAMPOLINE (MAXVA - PGSIZE)
 
 // map kernel stacks beneath the trampoline,
