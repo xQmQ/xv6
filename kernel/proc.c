@@ -18,6 +18,7 @@ struct spinlock pid_lock;
 extern void forkret(void);
 static void wakeup1(struct proc *chan);
 static void freeproc(struct proc *p);
+void proc_freek(pagetable_t pagetable);
 
 extern char trampoline[]; // trampoline.S
 
@@ -32,19 +33,19 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
 
-      // Allocate a page for the process's kernel stack.
-      // Map it high in memory, followed by an invalid
-      // guard page.
-      // 为进程的内核堆栈分配一个页面。
-      // 将其映射到内存的高位，然后是一个无效的守护页
-      char *pa = kalloc();
-      if(pa == 0)
-        panic("kalloc");
-      // 为进程计算一个虚拟地址
-      // 将虚拟地址和申请的物理地址绑定到kernel_pagetable
-      uint64 va = KSTACK((int) (p - proc));
-      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-      p->kstack = va;
+      // // Allocate a page for the process's kernel stack.
+      // // Map it high in memory, followed by an invalid
+      // // guard page.
+      // // 为进程的内核堆栈分配一个页面。
+      // // 将其映射到内存的高位，然后是一个无效的守护页
+      // char *pa = kalloc();
+      // if(pa == 0)
+      //   panic("kalloc");
+      // // 为进程计算一个虚拟地址
+      // // 将虚拟地址和申请的物理地址绑定到kernel_pagetable
+      // uint64 va = KSTACK((int) (p - proc));
+      // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+      // p->kstack = va;
   }
   kvminithart();
 }
@@ -124,11 +125,24 @@ found:
   // An empty user page table.
   // 为进程分配一个空的用户页表
   p->pagetable = proc_pagetable(p);
-  if(p->pagetable == 0){
+  // 创建内核页表副本
+  p->kernel_pagetable = kptinuvm();
+  if(p->pagetable == 0 || p->kernel_pagetable==0)
+  {
     freeproc(p);
     release(&p->lock);
     return 0;
   }
+
+  // 根据此进程在进程队列中的位置
+  // 在进程内存的对应位置设置内核栈
+  // 并绑定到进程的内核页表副本上
+  char *pa = kalloc();
+  if(pa == 0)
+    panic("kalloc");
+  uint64 va = KSTACK((int)(p - proc));
+  uvmmap(p->kernel_pagetable, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  p->kstack = va;
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -152,6 +166,15 @@ freeproc(struct proc *p)
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
+  // 释放进程的内核栈的物理页
+  if(p->kstack){
+    pte_t *pte = walk(p->kernel_pagetable, p->kstack, 0);
+    kfree((void *)PTE2PA(*pte));
+  }
+  p->kstack = 0;
+  if(p->kernel_pagetable)
+    proc_freek(p->kernel_pagetable);
+  p->kernel_pagetable = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -160,6 +183,25 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+}
+
+void 
+proc_freek(pagetable_t pagetable)
+{
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V)){
+      pagetable[i] = 0;
+      if ((pte & (PTE_R|PTE_W|PTE_X)) == 0)
+      {
+        uint64 child = PTE2PA(pte);
+        proc_freek((pagetable_t)child);
+      }
+    } else if(pte & PTE_V){
+      panic("proc free kpt: leaf");
+    }
+  }
+  kfree((void*)pagetable);
 }
 
 // Create a user page table for a given process,
@@ -225,7 +267,7 @@ userinit(void)
 
   p = allocproc();
   initproc = p;
-  
+
   // allocate one user page and copy init's instructions
   // and data into it.
   uvminit(p->pagetable, initcode, sizeof(initcode));
@@ -480,7 +522,7 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     // 通过确保设备可以中断来避免死锁
     intr_on();
-    
+
     int found = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
@@ -491,6 +533,10 @@ scheduler(void)
         // 将一个就绪态进程转换到运行态
         p->state = RUNNING;
         c->proc = p;
+
+        w_satp(MAKE_SATP(p->kernel_pagetable));
+        sfence_vma();
+        
         // 切换CPU上下文，来运行进程
         swtch(&c->context, &p->context);
 
@@ -509,6 +555,8 @@ scheduler(void)
     if(found == 0) {
       intr_on();
       asm volatile("wfi");
+      // 在没有进程时加载kernel_pagetable
+      kvminithart();
     }
 #else
     ;
